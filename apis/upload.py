@@ -1,7 +1,8 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from datetime import datetime, timezone
 from database import fs_bucket, files_collection
-import io
+from services.extractor import extract_text
+from services.embedder import embed_and_store
 
 router = APIRouter()
 
@@ -20,8 +21,8 @@ async def upload_file(file: UploadFile = File(...)):
   """
   Upload a file (text, PDF, or image).
 
-  The raw bytes are stored in MongoDB GridFS and the file metadata
-  is stored in the `files` collection.
+  Stores raw bytes in MongoDB GridFS, metadata in the `files` collection,
+  and automatically extracts text, chunks, embeds, and stores vectors in ChromaDB.
   """
   if file.content_type not in SUPPORTED_CONTENT_TYPES:
     raise HTTPException(
@@ -38,7 +39,7 @@ async def upload_file(file: UploadFile = File(...)):
   if file_size == 0:
     raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-  # Store raw bytes in GridFS
+  # 1. Store raw bytes in GridFS
   grid_in = fs_bucket.open_upload_stream(
     file.filename,
     metadata={
@@ -50,7 +51,7 @@ async def upload_file(file: UploadFile = File(...)):
   await grid_in.close()
   grid_file_id = grid_in._id
 
-  # Store metadata in the files collection
+  # 2. Store metadata in the files collection
   doc = {
     "filename": file.filename,
     "content_type": file.content_type,
@@ -59,12 +60,18 @@ async def upload_file(file: UploadFile = File(...)):
     "uploaded_at": datetime.now(timezone.utc),
   }
   result = await files_collection.insert_one(doc)
+  file_id = str(result.inserted_id)
+
+  # 3. Extract text → chunk → embed → store in ChromaDB
+  text = extract_text(contents, file.content_type)
+  chunks_stored = embed_and_store(text, file_id, file.filename) if text else 0
 
   return {
     "message": "File uploaded successfully",
-    "file_id": str(result.inserted_id),
+    "file_id": file_id,
     "grid_file_id": str(grid_file_id),
     "filename": file.filename,
     "content_type": file.content_type,
     "size_bytes": file_size,
+    "chunks_embedded": chunks_stored,
   }
