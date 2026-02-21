@@ -2,3 +2,8 @@ fastapi
 uvicorn[standard]
 motor
 python-multipart
+pypdf
+pytesseract
+Pillow
+sentence-transformers
+chromadb

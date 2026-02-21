@@ -1,2 +1,19 @@
+# Python
 venv/
-__pycache__
+__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# ChromaDB vector store (local persistence)
+chroma_db/
+
+# Environment variables
+.env
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
