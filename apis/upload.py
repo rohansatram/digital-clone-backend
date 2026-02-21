@@ -16,6 +16,26 @@ SUPPORTED_CONTENT_TYPES = {
 }
 
 
+@router.get("/files")
+async def list_files():
+  """Return all uploaded file metadata, most recent first."""
+  cursor = files_collection.find(
+    {},
+    {"_id": 1, "filename": 1, "content_type": 1, "size_bytes": 1, "uploaded_at": 1}
+  ).sort("uploaded_at", -1)
+
+  files = []
+  async for doc in cursor:
+    files.append({
+      "file_id": str(doc["_id"]),
+      "filename": doc["filename"],
+      "content_type": doc["content_type"],
+      "size_bytes": doc["size_bytes"],
+      "uploaded_at": doc["uploaded_at"].isoformat() if doc.get("uploaded_at") else None,
+    })
+  return {"files": files}
+
+
 @router.post("/upload", status_code=201)
 async def upload_file(file: UploadFile = File(...)):
   """
