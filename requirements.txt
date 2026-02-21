@@ -7,3 +7,5 @@ pytesseract
 Pillow
 sentence-transformers
 chromadb
+openai
+python-dotenv
